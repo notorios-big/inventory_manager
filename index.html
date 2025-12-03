@@ -76,6 +76,7 @@
                         <thead class="bg-gray-800 text-white">
                             <tr>
                                 <th class="px-6 py-3 text-left text-sm font-semibold">Aroma</th>
+                                <th class="px-6 py-3 text-left text-sm font-semibold">Tipo</th>
                                 <th class="px-6 py-3 text-left text-sm font-semibold">Stock Actual</th>
                             </tr>
                         </thead>
@@ -119,9 +120,10 @@
                         <select id="combo-tipo-pack"
                                 class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                             <option value="">Seleccionar...</option>
-                            <option value="pack4">Pack de 4</option>
-                            <option value="pack6">Pack de 6</option>
-                            <option value="pack8">Pack de 8</option>
+                            <option value="unitario-case">Unitario - Case</option>
+                            <option value="unitario-recarga">Unitario - Recarga</option>
+                            <option value="bipack">Bipack (1 Case + 1 Recarga)</option>
+                            <option value="tripack">Tripack (1 Case + 2 Recargas)</option>
                         </select>
                     </div>
 
@@ -194,11 +196,8 @@
                             <table id="tabla-pedidos" class="w-full">
                                 <thead class="bg-gray-800 text-white">
                                     <tr>
-                                        <th class="px-4 py-3 text-left text-sm font-semibold">Tipo</th>
-                                        <th class="px-4 py-3 text-left text-sm font-semibold">N°1</th>
-                                        <th class="px-4 py-3 text-left text-sm font-semibold">N°2</th>
-                                        <th class="px-4 py-3 text-left text-sm font-semibold">N°3</th>
-                                        <th class="px-4 py-3 text-left text-sm font-semibold">N°4</th>
+                                        <th class="px-4 py-3 text-left text-sm font-semibold">Tipo de Pedido</th>
+                                        <th class="px-4 py-3 text-left text-sm font-semibold">Aromas Seleccionados</th>
                                         <th class="px-4 py-3 text-left text-sm font-semibold">Acciones</th>
                                     </tr>
                                 </thead>
@@ -227,7 +226,8 @@
                         <thead class="bg-gray-800 text-white">
                             <tr>
                                 <th class="px-6 py-3 text-left text-sm font-semibold">Tipo de Pack</th>
-                                <th class="px-6 py-3 text-left text-sm font-semibold">Disponibilidad Máxima</th>
+                                <th class="px-6 py-3 text-left text-sm font-semibold">Combinación Aromas</th>
+                                <th class="px-6 py-3 text-left text-sm font-semibold">Stock Máximo</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200">

@@ -2,12 +2,12 @@
 // GESTIÓN DE DATOS Y ESTADO
 // ==========================================
 
-// Datos iniciales del inventario
+// Estructura de inventario: 4 aromas x 2 tipos (Case y Recarga)
 const inventarioInicial = {
-    'N°1': 0,
-    'N°2': 0,
-    'N°3': 0,
-    'N°4': 0
+    '1': { 'Case': 0, 'Recarga': 0 },
+    '2': { 'Case': 0, 'Recarga': 0 },
+    '3': { 'Case': 0, 'Recarga': 0 },
+    '4': { 'Case': 0, 'Recarga': 0 }
 };
 
 // Estado de la aplicación
@@ -21,7 +21,7 @@ let pedidosActuales = [];
 document.addEventListener('DOMContentLoaded', function() {
     cargarDatos();
     cargarInventarioTabla();
-    navegateTo('menu-principal');
+    navigateTo('menu-principal');
 });
 
 // Cargar datos del localStorage o usar valores iniciales
@@ -30,7 +30,7 @@ function cargarDatos() {
     if (datosGuardados) {
         inventario = JSON.parse(datosGuardados);
     } else {
-        inventario = { ...inventarioInicial };
+        inventario = JSON.parse(JSON.stringify(inventarioInicial));
         guardarDatos();
     }
 }
@@ -72,7 +72,6 @@ function navigateTo(vista) {
 function cerrarSesion() {
     if (confirm('¿Está seguro que desea cerrar sesión?')) {
         alert('Sesión cerrada exitosamente');
-        // Aquí podrías redirigir a una página de login si existiera
     }
 }
 
@@ -84,28 +83,41 @@ function cargarInventarioTabla() {
     const tbody = document.querySelector('#tabla-inventario tbody');
     tbody.innerHTML = '';
 
+    // Crear filas para cada combinación de aroma y tipo
     Object.keys(inventario).forEach(aroma => {
-        const tr = document.createElement('tr');
-        tr.className = 'hover:bg-gray-50';
-        tr.innerHTML = `
-            <td class="px-6 py-4 text-sm font-medium text-gray-900">${aroma}</td>
-            <td class="px-6 py-4">
-                <input type="number"
-                       min="0"
-                       value="${inventario[aroma]}"
-                       data-aroma="${aroma}"
-                       class="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                       onchange="actualizarInventarioTemporal(this)">
-            </td>
-        `;
-        tbody.appendChild(tr);
+        ['Case', 'Recarga'].forEach(tipo => {
+            const tr = document.createElement('tr');
+            tr.className = 'hover:bg-gray-50';
+
+            const tipoClass = tipo === 'Case' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800';
+
+            tr.innerHTML = `
+                <td class="px-6 py-4 text-sm font-medium text-gray-900">N°${aroma}</td>
+                <td class="px-6 py-4">
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${tipoClass}">
+                        ${tipo}
+                    </span>
+                </td>
+                <td class="px-6 py-4">
+                    <input type="number"
+                           min="0"
+                           value="${inventario[aroma][tipo]}"
+                           data-aroma="${aroma}"
+                           data-tipo="${tipo}"
+                           class="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                           onchange="actualizarInventarioTemporal(this)">
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
     });
 }
 
 function actualizarInventarioTemporal(input) {
     const aroma = input.dataset.aroma;
+    const tipo = input.dataset.tipo;
     const valor = parseInt(input.value) || 0;
-    inventario[aroma] = valor;
+    inventario[aroma][tipo] = valor;
 }
 
 function guardarCambiosInventario() {
@@ -131,27 +143,38 @@ function agregarALista() {
         return;
     }
 
-    const total = spin1 + spin2 + spin3 + spin4;
-    const cantidadRequerida = parseInt(tipoPack.replace('pack', ''));
+    // Construir array de aromas seleccionados
+    const aromas = [];
+    for (let i = 0; i < spin1; i++) aromas.push('1');
+    for (let i = 0; i < spin2; i++) aromas.push('2');
+    for (let i = 0; i < spin3; i++) aromas.push('3');
+    for (let i = 0; i < spin4; i++) aromas.push('4');
 
-    if (total !== cantidadRequerida) {
-        alert(`⚠️ La suma de aromas debe ser ${cantidadRequerida} para un ${tipoPack}`);
-        return;
-    }
+    const total = aromas.length;
 
-    if (spin1 < 0 || spin2 < 0 || spin3 < 0 || spin4 < 0) {
-        alert('⚠️ Las cantidades no pueden ser negativas');
-        return;
+    // Validar según tipo de pack
+    if (tipoPack === 'unitario-case' || tipoPack === 'unitario-recarga') {
+        if (total !== 1) {
+            alert('⚠️ La venta unitaria es de 1 solo producto');
+            return;
+        }
+    } else if (tipoPack === 'bipack') {
+        if (total !== 2) {
+            alert('⚠️ Un Bipack debe tener exactamente 2 aromas');
+            return;
+        }
+    } else if (tipoPack === 'tripack') {
+        if (total !== 3) {
+            alert('⚠️ Un Tripack debe tener exactamente 3 aromas');
+            return;
+        }
     }
 
     // Agregar pedido
     const pedido = {
         id: Date.now(),
         tipo: tipoPack,
-        n1: spin1,
-        n2: spin2,
-        n3: spin3,
-        n4: spin4
+        aromas: aromas
     };
 
     pedidosActuales.push(pedido);
@@ -186,12 +209,19 @@ function cargarTablaPedidos() {
     pedidosActuales.forEach(pedido => {
         const tr = document.createElement('tr');
         tr.className = 'hover:bg-gray-50';
+
+        // Formatear nombre del tipo
+        let tipoNombre = '';
+        switch(pedido.tipo) {
+            case 'unitario-case': tipoNombre = 'Unitario - Case'; break;
+            case 'unitario-recarga': tipoNombre = 'Unitario - Recarga'; break;
+            case 'bipack': tipoNombre = 'Bipack'; break;
+            case 'tripack': tipoNombre = 'Tripack'; break;
+        }
+
         tr.innerHTML = `
-            <td class="px-4 py-3 text-sm font-medium text-gray-900">${pedido.tipo}</td>
-            <td class="px-4 py-3 text-sm text-gray-700">${pedido.n1}</td>
-            <td class="px-4 py-3 text-sm text-gray-700">${pedido.n2}</td>
-            <td class="px-4 py-3 text-sm text-gray-700">${pedido.n3}</td>
-            <td class="px-4 py-3 text-sm text-gray-700">${pedido.n4}</td>
+            <td class="px-4 py-3 text-sm font-medium text-gray-900">${tipoNombre}</td>
+            <td class="px-4 py-3 text-sm text-gray-700">${pedido.aromas.join(', ')}</td>
             <td class="px-4 py-3 text-sm">
                 <button onclick="eliminarPedido(${pedido.id})"
                         class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-xs font-semibold transition duration-200">
@@ -219,40 +249,109 @@ function actualizarInstrucciones() {
         return;
     }
 
-    // Calcular totales
-    const totales = {
-        'N°1': 0,
-        'N°2': 0,
-        'N°3': 0,
-        'N°4': 0
-    };
+    // Simular el procesamiento para mostrar qué se necesita
+    const stockSimulado = JSON.parse(JSON.stringify(inventario));
+    let html = '<div class="space-y-3">';
+    let hayProblemas = false;
 
-    pedidosActuales.forEach(pedido => {
-        totales['N°1'] += pedido.n1;
-        totales['N°2'] += pedido.n2;
-        totales['N°3'] += pedido.n3;
-        totales['N°4'] += pedido.n4;
-    });
+    pedidosActuales.forEach((pedido, index) => {
+        const resultado = simularPedido(pedido, stockSimulado);
 
-    let html = '<div class="space-y-2">';
-    html += `<p class="font-semibold text-gray-800">Total de unidades necesarias:</p>`;
-    html += '<ul class="space-y-1 ml-4">';
+        if (resultado.exito) {
+            html += `<div class="text-sm text-green-700 bg-green-50 p-2 rounded">
+                <b>Pedido ${index + 1}:</b> ${resultado.componentes.join(', ')}
+            </div>`;
 
-    Object.keys(totales).forEach(aroma => {
-        if (totales[aroma] > 0) {
-            const disponible = inventario[aroma] || 0;
-            const suficiente = disponible >= totales[aroma];
-            const clase = suficiente ? 'text-green-700' : 'text-red-700';
-            const icono = suficiente ? '✓' : '✗';
-
-            html += `<li class="${clase}">
-                ${icono} ${aroma}: ${totales[aroma]} unidades (Disponible: ${disponible})
-            </li>`;
+            // Aplicar descuentos al stock simulado
+            resultado.descuentos.forEach(desc => {
+                stockSimulado[desc.aroma][desc.tipo] -= 1;
+            });
+        } else {
+            html += `<div class="text-sm text-red-700 bg-red-50 p-2 rounded">
+                <b>Pedido ${index + 1}:</b> ❌ ${resultado.error}
+            </div>`;
+            hayProblemas = true;
         }
     });
 
-    html += '</ul></div>';
+    html += '</div>';
+
+    if (hayProblemas) {
+        html = '<p class="text-red-700 font-semibold mb-2">⚠️ Hay problemas con el stock:</p>' + html;
+    } else {
+        html = '<p class="text-green-700 font-semibold mb-2">✓ Todos los pedidos pueden procesarse:</p>' + html;
+    }
+
     instruccionesDiv.innerHTML = html;
+}
+
+function simularPedido(pedido, stock) {
+    const tipo = pedido.tipo;
+    const aromas = pedido.aromas;
+    const componentes = [];
+    const descuentos = [];
+
+    if (tipo === 'unitario-case') {
+        const aroma = aromas[0];
+        if (stock[aroma]['Case'] > 0) {
+            componentes.push(`Case N°${aroma}`);
+            descuentos.push({ aroma: aroma, tipo: 'Case' });
+            return { exito: true, componentes, descuentos };
+        } else {
+            return { exito: false, error: `Sin stock de Case N°${aroma}` };
+        }
+    } else if (tipo === 'unitario-recarga') {
+        const aroma = aromas[0];
+        if (stock[aroma]['Recarga'] > 0) {
+            componentes.push(`Recarga N°${aroma}`);
+            descuentos.push({ aroma: aroma, tipo: 'Recarga' });
+            return { exito: true, componentes, descuentos };
+        } else {
+            return { exito: false, error: `Sin stock de Recarga N°${aroma}` };
+        }
+    } else {
+        // Bipack o Tripack
+        // Seleccionar el aroma con más Cases disponibles
+        let maxCases = -1;
+        let aromaParaCase = null;
+
+        const aromasUnicos = [...new Set(aromas)];
+        aromasUnicos.forEach(aroma => {
+            if (stock[aroma]['Case'] > maxCases) {
+                maxCases = stock[aroma]['Case'];
+                aromaParaCase = aroma;
+            }
+        });
+
+        if (maxCases <= 0) {
+            return { exito: false, error: 'Sin Cases disponibles' };
+        }
+
+        // Usar ese aroma como Case
+        componentes.push(`Case N°${aromaParaCase}`);
+        descuentos.push({ aroma: aromaParaCase, tipo: 'Case' });
+
+        // Los demás aromas como Recargas
+        const aromasParaRecarga = aromas.filter(a => a !== aromaParaCase);
+
+        for (let aroma of aromasParaRecarga) {
+            if (stock[aroma]['Recarga'] > 0) {
+                componentes.push(`Recarga N°${aroma}`);
+                descuentos.push({ aroma: aroma, tipo: 'Recarga' });
+                // Descontar temporalmente para la simulación
+                stock[aroma]['Recarga'] -= 1;
+            } else {
+                return { exito: false, error: `Sin stock de Recarga N°${aroma}` };
+            }
+        }
+
+        // Restaurar el stock de recargas ya que esto es simulación
+        aromasParaRecarga.forEach(aroma => {
+            stock[aroma]['Recarga'] += 1;
+        });
+
+        return { exito: true, componentes, descuentos };
+    }
 }
 
 function procesarPedidos() {
@@ -261,59 +360,53 @@ function procesarPedidos() {
         return;
     }
 
-    // Calcular totales necesarios
-    const totales = {
-        'N°1': 0,
-        'N°2': 0,
-        'N°3': 0,
-        'N°4': 0
-    };
-
-    pedidosActuales.forEach(pedido => {
-        totales['N°1'] += pedido.n1;
-        totales['N°2'] += pedido.n2;
-        totales['N°3'] += pedido.n3;
-        totales['N°4'] += pedido.n4;
-    });
-
-    // Verificar stock disponible
-    let stockSuficiente = true;
-    let mensajeError = 'Stock insuficiente para:\n';
-
-    Object.keys(totales).forEach(aroma => {
-        const necesario = totales[aroma];
-        const disponible = inventario[aroma] || 0;
-
-        if (necesario > disponible) {
-            stockSuficiente = false;
-            mensajeError += `\n${aroma}: necesita ${necesario}, disponible ${disponible}`;
-        }
-    });
-
-    if (!stockSuficiente) {
-        alert('⚠️ ' + mensajeError);
-        return;
-    }
-
     // Confirmar procesamiento
     if (!confirm('¿Está seguro de procesar estos pedidos y descontar del stock?')) {
         return;
     }
 
-    // Descontar del inventario
-    Object.keys(totales).forEach(aroma => {
-        inventario[aroma] -= totales[aroma];
+    // Copiar inventario para procesamiento
+    const stockTrabajo = JSON.parse(JSON.stringify(inventario));
+    const resultados = [];
+    let hayErrores = false;
+
+    // Procesar cada pedido
+    pedidosActuales.forEach((pedido, index) => {
+        const resultado = simularPedido(pedido, stockTrabajo);
+
+        if (resultado.exito) {
+            // Aplicar descuentos
+            resultado.descuentos.forEach(desc => {
+                stockTrabajo[desc.aroma][desc.tipo] -= 1;
+            });
+            resultados.push({ pedido: index + 1, exito: true, componentes: resultado.componentes });
+        } else {
+            hayErrores = true;
+            resultados.push({ pedido: index + 1, exito: false, error: resultado.error });
+        }
     });
 
-    // Guardar cambios
+    if (hayErrores) {
+        alert('⚠️ No se pudo procesar. Hay problemas de stock. Revise las instrucciones.');
+        return;
+    }
+
+    // Si todo salió bien, actualizar inventario real
+    inventario = stockTrabajo;
     guardarDatos();
+
+    // Generar reporte
+    let reporte = '✅ Pedidos procesados exitosamente:\n\n';
+    resultados.forEach(r => {
+        reporte += `Pedido ${r.pedido}: ${r.componentes.join(', ')}\n`;
+    });
+
+    alert(reporte);
 
     // Limpiar pedidos
     pedidosActuales = [];
     cargarTablaPedidos();
     actualizarInstrucciones();
-
-    alert('✅ Pedidos procesados exitosamente. Stock actualizado.');
 }
 
 // ==========================================
@@ -324,26 +417,54 @@ function calcularDisponibilidadShopify() {
     const tbody = document.querySelector('#tabla-shopify tbody');
     tbody.innerHTML = '';
 
-    const tiposPacks = [
-        { nombre: 'Pack de 4', cantidad: 4 },
-        { nombre: 'Pack de 6', cantidad: 6 },
-        { nombre: 'Pack de 8', cantidad: 8 }
-    ];
+    const resultados = [];
 
-    tiposPacks.forEach(pack => {
-        const disponibilidad = calcularMaximoPacks(pack.cantidad);
+    // Generar todas las combinaciones posibles
+    const aromas = ['1', '2', '3', '4'];
 
+    // Bipacks: combinaciones con repetición de 2 aromas
+    const combinacionesBipack = generarCombinacionesConRepeticion(aromas, 2);
+    combinacionesBipack.forEach(combo => {
+        const stock = calcularMaximoPacks(combo, inventario);
+        resultados.push({
+            tipo: 'Bipack',
+            combo: combo,
+            stock: stock
+        });
+    });
+
+    // Tripacks: combinaciones con repetición de 3 aromas
+    const combinacionesTripack = generarCombinacionesConRepeticion(aromas, 3);
+    combinacionesTripack.forEach(combo => {
+        const stock = calcularMaximoPacks(combo, inventario);
+        resultados.push({
+            tipo: 'Tripack',
+            combo: combo,
+            stock: stock
+        });
+    });
+
+    // Ordenar por tipo y stock
+    resultados.sort((a, b) => {
+        if (a.tipo !== b.tipo) return a.tipo.localeCompare(b.tipo);
+        return b.stock - a.stock;
+    });
+
+    // Mostrar en la tabla
+    resultados.forEach(r => {
         const tr = document.createElement('tr');
         tr.className = 'hover:bg-gray-50';
+
+        const stockClass = r.stock === 0 ? 'bg-red-100 text-red-800' :
+                          r.stock < 5 ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-green-100 text-green-800';
+
         tr.innerHTML = `
-            <td class="px-6 py-4 text-sm font-medium text-gray-900">${pack.nombre}</td>
-            <td class="px-6 py-4 text-sm text-gray-700">
-                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${
-                    disponibilidad > 10 ? 'bg-green-100 text-green-800' :
-                    disponibilidad > 5 ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-red-100 text-red-800'
-                }">
-                    ${disponibilidad} packs
+            <td class="px-6 py-4 text-sm font-medium text-gray-900">${r.tipo}</td>
+            <td class="px-6 py-4 text-sm text-gray-700">N°${r.combo.join(', N°')}</td>
+            <td class="px-6 py-4 text-sm">
+                <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${stockClass}">
+                    ${r.stock} packs
                 </span>
             </td>
         `;
@@ -351,26 +472,72 @@ function calcularDisponibilidadShopify() {
     });
 }
 
-function calcularMaximoPacks(unidadesPorPack) {
-    // Calcular el máximo de packs que se pueden hacer con el stock actual
-    // asumiendo distribución equitativa de aromas
+function generarCombinacionesConRepeticion(arr, size) {
+    const result = [];
 
-    const stockMinimo = Math.min(
-        inventario['N°1'] || 0,
-        inventario['N°2'] || 0,
-        inventario['N°3'] || 0,
-        inventario['N°4'] || 0
-    );
+    function backtrack(start, combo) {
+        if (combo.length === size) {
+            result.push([...combo]);
+            return;
+        }
 
-    const stockTotal = Object.values(inventario).reduce((sum, val) => sum + val, 0);
+        for (let i = start; i < arr.length; i++) {
+            combo.push(arr[i]);
+            backtrack(i, combo);
+            combo.pop();
+        }
+    }
 
-    // El máximo de packs es el menor entre:
-    // 1. Stock total / unidades por pack
-    // 2. Stock mínimo * 4 / unidades por pack (considerando que necesitamos de todos)
-    const maxPorTotal = Math.floor(stockTotal / unidadesPorPack);
-    const maxPorMinimo = Math.floor((stockMinimo * 4) / unidadesPorPack);
+    backtrack(0, []);
+    return result;
+}
 
-    return Math.min(maxPorTotal, maxPorMinimo);
+function calcularMaximoPacks(aromas, stockReal) {
+    // Simular cuántos packs de esta combinación se pueden hacer
+    const stockSimulado = JSON.parse(JSON.stringify(stockReal));
+    let contador = 0;
+
+    while (true) {
+        // Encontrar el aroma con más Cases disponibles
+        let maxCases = -1;
+        let aromaParaCase = null;
+
+        const aromasUnicos = [...new Set(aromas)];
+        aromasUnicos.forEach(aroma => {
+            if (stockSimulado[aroma]['Case'] > maxCases) {
+                maxCases = stockSimulado[aroma]['Case'];
+                aromaParaCase = aroma;
+            }
+        });
+
+        if (maxCases <= 0) {
+            break;
+        }
+
+        // Descontar el Case
+        stockSimulado[aromaParaCase]['Case'] -= 1;
+
+        // Intentar descontar las Recargas
+        const aromasParaRecarga = aromas.filter(a => a !== aromaParaCase);
+        let puedoHacerPack = true;
+
+        for (let aroma of aromasParaRecarga) {
+            if (stockSimulado[aroma]['Recarga'] > 0) {
+                stockSimulado[aroma]['Recarga'] -= 1;
+            } else {
+                puedoHacerPack = false;
+                break;
+            }
+        }
+
+        if (puedoHacerPack) {
+            contador++;
+        } else {
+            break;
+        }
+    }
+
+    return contador;
 }
 
 function recalcularDisponibilidad() {
@@ -383,7 +550,7 @@ function recalcularDisponibilidad() {
 // UTILIDADES
 // ==========================================
 
-// Función para exportar datos (opcional)
+// Función para exportar datos
 function exportarDatos() {
     const datos = {
         inventario: inventario,
@@ -400,7 +567,7 @@ function exportarDatos() {
     link.click();
 }
 
-// Función para importar datos (opcional)
+// Función para importar datos
 function importarDatos(event) {
     const file = event.target.files[0];
     if (!file) return;
@@ -420,4 +587,14 @@ function importarDatos(event) {
         }
     };
     reader.readAsText(file);
+}
+
+// Función para resetear inventario
+function resetearInventario() {
+    if (confirm('⚠️ ¿Está seguro? Esto eliminará todos los datos del inventario.')) {
+        inventario = JSON.parse(JSON.stringify(inventarioInicial));
+        guardarDatos();
+        cargarInventarioTabla();
+        alert('✅ Inventario reseteado');
+    }
 }
